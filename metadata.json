@@ -1,0 +1,5 @@
+{
+  "name": "Totem Rental Quote Calculator",
+  "description": "An application to calculate rental quotes for totems, including tiered pricing and dynamic transportation costs based on proximity to warehouses in Rome and Novi Ligure.",
+  "requestFramePermissions": []
+}
