@@ -1,79 +1,64 @@
-import { GoogleGenAI, Type } from "@google/genai";
+// services/geminiService.ts
+// Re-implemented to use Nominatim (OpenStreetMap) so we avoid embedding any API key in the client.
+// Exposes the same functions expected by the rest of the app: getCoordinatesForCity, getRegionForCity
+
 import type { Coordinates } from "../types";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
-
-if (!GEMINI_API_KEY) {
-  console.warn('VITE_GEMINI_API_KEY non impostata. Le funzioni di geocoding potrebbero fallire.');
-}
-
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-const coordinateSchema = {
-    type: Type.OBJECT,
-    properties: {
-        lat: { type: Type.NUMBER, description: "Latitudine della città" },
-        lon: { type: Type.NUMBER, description: "Longitudine della città" },
-    },
-    required: ["lat", "lon"],
-};
-
-const regionSchema = {
-    type: Type.OBJECT,
-    properties: {
-        region: { type: Type.STRING, description: "La regione italiana di appartenenza della città" },
-    },
-    required: ["region"],
-}
+const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
 export const getCoordinatesForCity = async (cityName: string): Promise<Coordinates> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Fornisci le coordinate geografiche (latitudine e longitudine) per la città: ${cityName}, Italia.`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: coordinateSchema,
-            },
-        });
-        
-        const jsonText = response.text.trim();
-        const coordinates = JSON.parse(jsonText);
-        
-        if (typeof coordinates.lat === 'number' && typeof coordinates.lon === 'number') {
-            return coordinates;
-        } else {
-            console.error("Parsed coordinates are not in the expected format:", coordinates);
-            throw new Error(`Formato coordinate non valido per "${cityName}".`);
-        }
-    } catch (error) {
-        console.error(`Error fetching coordinates for ${cityName}:`, error);
-        throw new Error(`Impossibile ottenere le coordinate per "${cityName}". Potrebbe essere un nome di città non valido o un problema di rete. Riprova.`);
+  const q = encodeURIComponent(`${cityName}, Italy`);
+  const url = `${NOMINATIM_BASE}/search?format=json&limit=1&q=${q}&addressdetails=1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        // Nominatim asks for a valid User-Agent/Referer — keep it polite
+        'Accept': 'application/json'
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`Geocoding request failed: ${res.status} ${res.statusText}`);
     }
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error(`Nessun risultato per la città: "${cityName}"`);
+    }
+    const first = data[0];
+    return {
+      lat: Number(first.lat),
+      lon: Number(first.lon)
+    };
+  } catch (err: any) {
+    console.error('Errore in getCoordinatesForCity (Nominatim):', err);
+    throw new Error(`Impossibile ottenere le coordinate per "${cityName}".`);
+  }
 };
 
-
 export const getRegionForCity = async (cityName: string): Promise<string> => {
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Qual è la regione italiana per la città: ${cityName}?`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: regionSchema,
-            },
-        });
-        
-        const jsonText = response.text.trim();
-        const data = JSON.parse(jsonText);
-
-        if (typeof data.region === 'string') {
-            return data.region;
-        } else {
-             throw new Error(`Formato regione non valido per "${cityName}".`);
-        }
-    } catch (error) {
-        console.error(`Error fetching region for ${cityName}:`, error);
-        throw new Error(`Impossibile ottenere la regione per "${cityName}".`);
+  const q = encodeURIComponent(`${cityName}, Italy`);
+  const url = `${NOMINATIM_BASE}/search?format=json&limit=1&q=${q}&addressdetails=1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`Region request failed: ${res.status} ${res.statusText}`);
     }
-}
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error(`Nessun risultato per la città: "${cityName}"`);
+    }
+    const addr = data[0].address || {};
+    // Nominatim può restituire state, region, county. Usiamo la prima disponibile.
+    const region = addr.state || addr.region || addr.county || addr.province || '';
+    if (!region) {
+      throw new Error(`Regione non trovata per "${cityName}".`);
+    }
+    return region;
+  } catch (err: any) {
+    console.error('Errore in getRegionForCity (Nominatim):', err);
+    throw new Error(`Impossibile ottenere la regione per "${cityName}".`);
+  }
+};
