@@ -7,9 +7,12 @@ interface QuoteResultProps {
 }
 
 const QuoteResult: React.FC<QuoteResultProps> = ({ quote, onReset }) => {
-  const formatCurrency = (amount: number | 'A Preventivo') => {
+  const formatCurrency = (amount: number | 'A Preventivo' | undefined) => {
     if (typeof amount === 'string') return amount;
-    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
+    if (typeof amount === 'number') {
+      return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
+    }
+    return '-';
   };
 
   return (
@@ -36,7 +39,12 @@ const QuoteResult: React.FC<QuoteResultProps> = ({ quote, onReset }) => {
             <p><span className="font-semibold">Quantità:</span> {quote.quantity} pz</p>
             <p><span className="font-semibold">Durata:</span> {quote.days} giorni</p>
             <p><span className="font-semibold">Città:</span> {quote.destinationCity}</p>
-            <p className="sm:col-span-2"><span className="font-semibold">Costo Noleggio:</span> <span className="font-bold text-gray-800">{formatCurrency(quote.rentalCost)}</span></p>
+            <p className="sm:col-span-2">
+              <span className="font-semibold">Costo Noleggio (totale):</span> <span className="font-bold text-gray-800">{formatCurrency(quote.rentalCost)}</span>
+            </p>
+            <p className="sm:col-span-2">
+              <span className="font-semibold">Costo Noleggio per unità:</span> <span className="font-bold text-gray-800">{formatCurrency(quote.rentalCostPerUnit)}</span>
+            </p>
           </div>
         </div>
         
@@ -49,15 +57,25 @@ const QuoteResult: React.FC<QuoteResultProps> = ({ quote, onReset }) => {
                 <h4 className="font-bold text-xl text-indigo-800 mb-2">{option.name}</h4>
                 <div className="space-y-2 flex-grow">
                     <div className="flex justify-between items-center">
-                        <p className="text-gray-600">Costo trasporto:</p>
+                        <p className="text-gray-600">Costo trasporto (totale):</p>
                         <p className="font-semibold text-gray-800">{formatCurrency(option.transportCost)}</p>
                     </div>
-                     <p className="text-sm text-gray-500 text-right">{option.details}</p>
+                    <div className="flex justify-between items-center">
+                        <p className="text-gray-600">Costo trasporto per unità:</p>
+                        <p className="font-semibold text-gray-800">{formatCurrency(option.transportCostPerUnit)}</p>
+                    </div>
+                    <p className="text-sm text-gray-500 text-right">{option.details}</p>
                 </div>
                 <hr className="my-3 border-indigo-200"/>
                 <div className="flex justify-between items-center text-lg mt-auto">
-                  <p className="font-bold text-indigo-800">Costo Totale:</p>
-                  <p className="font-extrabold text-indigo-800">{formatCurrency(option.totalCost)}</p>
+                  <div>
+                    <p className="font-bold text-indigo-800">Costo Totale:</p>
+                    <p className="text-sm text-gray-600">Totale / unità</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-extrabold text-indigo-800">{formatCurrency(option.totalCost)}</p>
+                    <p className="font-bold text-indigo-800">{formatCurrency(option.totalCostPerUnit)}</p>
+                  </div>
                 </div>
               </div>
             ))}

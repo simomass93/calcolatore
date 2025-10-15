@@ -29,6 +29,9 @@ export interface TransportOption {
     transportCost: number | 'A Preventivo';
     totalCost: number | 'A Preventivo';
     details: string;
+    // Nuovi campi per costo per singolo totem (cad)
+    transportCostPerUnit?: number | 'A Preventivo';
+    totalCostPerUnit?: number | 'A Preventivo';
 }
 
 export interface QuoteDetails {
@@ -37,6 +40,7 @@ export interface QuoteDetails {
     days: number;
     destinationCity: string;
     rentalCost: number;
+    rentalCostPerUnit?: number;
     transportOptions: TransportOption[];
     distance: number;
     closestWarehouse: Warehouse;

@@ -65,6 +65,7 @@ const QuoteCalculator: React.FC<QuoteCalculatorProps> = ({ totems }) => {
       
       const dailyRate = applicableTier ? applicableTier.dailyRate : selectedTotem.pricingTiers[0]?.dailyRate || 0;
       const rentalCost = dailyRate * numQuantity * numDays;
+      const rentalCostPerUnit = rentalCost / numQuantity;
 
       // 2. Get Distance and Closest Warehouse
       const { warehouse: closestWarehouse, distance } = await findClosestWarehouse(destinationCity);
@@ -75,7 +76,7 @@ const QuoteCalculator: React.FC<QuoteCalculatorProps> = ({ totems }) => {
       // Option A: Dedicated Transport
       // Now use factor x4 on km. For Roma/Milano apply fixed fare + km*4 contribution.
       const destNormalized = destinationCity.trim().toLowerCase();
-      let dedicatedTransportCost: number;
+      let dedicatedTransportCost: number | 'A Preventivo';
       let dedicatedDetails = `Basato su ${distance} km da ${closestWarehouse.name} (fattore x4 A/R)`;
 
       const kmContribution = distance > 0 ? distance * 4 * KM_COST : 0;
@@ -83,35 +84,51 @@ const QuoteCalculator: React.FC<QuoteCalculatorProps> = ({ totems }) => {
       if (destNormalized.includes('roma')) {
         const fixed = FIXED_DEDICATED_TRANSPORT['roma'] ?? 0;
         dedicatedTransportCost = fixed + kmContribution;
-        dedicatedDetails = `Tariffa fissa trasporto dedicato per Roma (€${fixed}) `;
+        dedicatedDetails = `Tariffa fissa trasporto dedicato per Roma (€${fixed}) + contributo km (${distance} km x4)`;
       } else if (destNormalized.includes('milano')) {
         const fixed = FIXED_DEDICATED_TRANSPORT['milano'] ?? 0;
         dedicatedTransportCost = fixed + kmContribution;
-        dedicatedDetails = `Tariffa fissa trasporto dedicato per Milano (€${fixed})`;
+        dedicatedDetails = `Tariffa fissa trasporto dedicato per Milano (€${fixed}) + contributo km (${distance} km x4)`;
       } else {
         dedicatedTransportCost = kmContribution;
         dedicatedDetails = `Basato su ${distance} km (calcolo: ${distance} x 4 x €${KM_COST}/km)`;
       }
 
+      // Calcolo per-unit per dedicato
+      let dedicatedTransportPerUnit: number | 'A Preventivo' = 'A Preventivo';
+      let dedicatedTotalPerUnit: number | 'A Preventivo' = 'A Preventivo';
+      if (typeof dedicatedTransportCost === 'number') {
+        dedicatedTransportPerUnit = dedicatedTransportCost / numQuantity;
+        dedicatedTotalPerUnit = (rentalCost + dedicatedTransportCost) / numQuantity;
+      }
+
       transportOptions.push({
           name: 'Trasporto Dedicato',
           transportCost: dedicatedTransportCost,
-          totalCost: rentalCost + dedicatedTransportCost,
-          details: dedicatedDetails
+          totalCost: typeof dedicatedTransportCost === 'number' ? rentalCost + dedicatedTransportCost : 'A Preventivo',
+          details: dedicatedDetails,
+          transportCostPerUnit: dedicatedTransportPerUnit,
+          totalCostPerUnit: dedicatedTotalPerUnit
       });
 
       // Option B: Borghi Courier
       const borghiResult = await calculateBorghiTransportCost(destinationCity, numQuantity);
       
-      const totalCostBorghi = typeof borghiResult.cost === 'number'
-        ? rentalCost + borghiResult.cost
-        : 'A Preventivo';
-      
+      // borghiResult.cost è il costo totale per la spedizione (già calcolato in borghiService come tariffa * qty * 2)
+      let borghiTransportPerUnit: number | 'A Preventivo' = 'A Preventivo';
+      let borghiTotalPerUnit: number | 'A Preventivo' = 'A Preventivo';
+      if (typeof borghiResult.cost === 'number') {
+        borghiTransportPerUnit = borghiResult.cost / numQuantity;
+        borghiTotalPerUnit = (rentalCost + borghiResult.cost) / numQuantity;
+      }
+
       transportOptions.push({
           name: 'Corriere Borghi (Consigliato)',
           transportCost: borghiResult.cost,
-          totalCost: totalCostBorghi,
-          details: borghiResult.details
+          totalCost: typeof borghiResult.cost === 'number' ? rentalCost + borghiResult.cost : 'A Preventivo',
+          details: borghiResult.details,
+          transportCostPerUnit: borghiTransportPerUnit,
+          totalCostPerUnit: borghiTotalPerUnit
       });
 
 
@@ -122,6 +139,7 @@ const QuoteCalculator: React.FC<QuoteCalculatorProps> = ({ totems }) => {
         days: numDays,
         destinationCity,
         rentalCost,
+        rentalCostPerUnit,
         transportOptions,
         distance,
         closestWarehouse,
