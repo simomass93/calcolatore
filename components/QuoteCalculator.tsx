@@ -72,19 +72,25 @@ const QuoteCalculator: React.FC<QuoteCalculatorProps> = ({ totems }) => {
       // 3. Calculate Transport Options
       const transportOptions: TransportOption[] = [];
 
-      // Option A: Dedicated Transport (based on km) OR fixed for Roma/Milano
+      // Option A: Dedicated Transport
+      // Now use factor x4 on km. For Roma/Milano apply fixed fare + km*4 contribution.
       const destNormalized = destinationCity.trim().toLowerCase();
       let dedicatedTransportCost: number;
-      let dedicatedDetails = `Basato su ${distance} km da ${closestWarehouse.name} (A/R)`;
+      let dedicatedDetails = `Basato su ${distance} km da ${closestWarehouse.name} (fattore x4 A/R)`;
+
+      const kmContribution = distance > 0 ? distance * 4 * KM_COST : 0;
 
       if (destNormalized.includes('roma')) {
-        dedicatedTransportCost = FIXED_DEDICATED_TRANSPORT['roma'];
-        dedicatedDetails = `Tariffa fissa trasporto dedicato per Roma`;
+        const fixed = FIXED_DEDICATED_TRANSPORT['roma'] ?? 0;
+        dedicatedTransportCost = fixed + kmContribution;
+        dedicatedDetails = `Tariffa fissa trasporto dedicato per Roma (€${fixed}) + contributo km (${distance} km x4)`;
       } else if (destNormalized.includes('milano')) {
-        dedicatedTransportCost = FIXED_DEDICATED_TRANSPORT['milano'];
-        dedicatedDetails = `Tariffa fissa trasporto dedicato per Milano`;
+        const fixed = FIXED_DEDICATED_TRANSPORT['milano'] ?? 0;
+        dedicatedTransportCost = fixed + kmContribution;
+        dedicatedDetails = `Tariffa fissa trasporto dedicato per Milano (€${fixed}) + contributo km (${distance} km x4)`;
       } else {
-        dedicatedTransportCost = distance > 0 ? distance * 2 * KM_COST : 0;
+        dedicatedTransportCost = kmContribution;
+        dedicatedDetails = `Basato su ${distance} km (calcolo: ${distance} x 4 x €${KM_COST}/km)`;
       }
 
       transportOptions.push({
