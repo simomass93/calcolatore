@@ -83,11 +83,11 @@ const QuoteCalculator: React.FC<QuoteCalculatorProps> = ({ totems }) => {
       if (destNormalized.includes('roma')) {
         const fixed = FIXED_DEDICATED_TRANSPORT['roma'] ?? 0;
         dedicatedTransportCost = fixed + kmContribution;
-        dedicatedDetails = `Tariffa fissa trasporto dedicato per Roma (€${fixed}) + contributo km (${distance} km x4)`;
+        dedicatedDetails = `Tariffa fissa trasporto dedicato per Roma (€${fixed}) `;
       } else if (destNormalized.includes('milano')) {
         const fixed = FIXED_DEDICATED_TRANSPORT['milano'] ?? 0;
         dedicatedTransportCost = fixed + kmContribution;
-        dedicatedDetails = `Tariffa fissa trasporto dedicato per Milano (€${fixed}) + contributo km (${distance} km x4)`;
+        dedicatedDetails = `Tariffa fissa trasporto dedicato per Milano (€${fixed})`;
       } else {
         dedicatedTransportCost = kmContribution;
         dedicatedDetails = `Basato su ${distance} km (calcolo: ${distance} x 4 x €${KM_COST}/km)`;
